@@ -10,13 +10,22 @@ want to change. It saves you from building something that turns out not to fit.
 
 ## Setting up
 
-Plugins build against the SDK of the core repository, so check this repository out inside a core checkout:
+The plugins are a Cargo workspace against the plugin SDK, pinned to a tag of the core repository — this repository alone builds.
+To build against your own core checkout's `sdk/` (the SDK changes there first), add to `<this folder>/.cargo/config.toml`
+(not committed) a patch of the pinned SDK:
+
+```toml
+[patch.'https://github.com/OpenRsG/OpenFadeR']
+openfader-plugin = { path = "../../../sdk" }
+```
+
+When the core repository changes the plugin ABI, it releases the change and the tags move: bump the tag in this repository's
+`Cargo.toml` in the same commit as the plugins that need it. Otherwise:
 
 ```bash
-git clone https://github.com/OpenRsG/OpenFadeR.git
-cd OpenFadeR
-git clone https://github.com/OpenRsG/OpenFadeR-Plugins.git extension/plugin
-extension/plugin/build.sh
+git clone https://github.com/OpenRsG/OpenFadeR-Plugins.git
+cd OpenFadeR-Plugins
+./build.sh
 ```
 
 ## Running the tests

@@ -1,6 +1,7 @@
 name: CI
 
-# Push / pull request: build and test the plugins inside a core checkout (they build against its sdk/).
+# Push / pull request: build and test the plugins (the plugin SDK is pinned to a core tag, the build stands alone;
+# a core checkout is kept beside for its docs and the usual layout).
 # Tag v* (or a manual run naming a tag): build on Linux, Windows and macOS (arm64, and x86_64 cross-compiled on the arm64 runner) and
 # attach <plugin>-<os>-<arch>.zip to that release: the prebuilt libraries the app's one-click install downloads
 # (releases/latest/download/...).

@@ -1,9 +1,15 @@
-[workspace]
+﻿[workspace]
 resolver = "2"
 members = ["rekordbox-common", "rekordbox-export", "rekordbox-device", "rekordbox-db", "rekordbox-xml", "itunes", "sample-pack", "engine-dj", "serato", "virtualdj", "traktor"]
 
 [workspace.dependencies]
-openfader-plugin = { path = "../../sdk", features = ["library"] }
+# The plugin SDK, pinned to a tag of the core repository: a clone of this repository alone builds and the ABI a release
+# was built with stays that one. When the core changes the ABI and publishes it, bump the tag here. Developing against
+# your own core checkout's `sdk/` (this repository's usual place is `extension/plugin/` in one) — add to
+# `<this folder>/.cargo/config.toml` (not committed):
+#     [patch.'https://github.com/OpenRsG/OpenFadeR']
+#     openfader-plugin = { path = "../../../sdk" }
+openfader-plugin = { git = "https://github.com/OpenRsG/OpenFadeR", tag = "v0.1.0", features = ["library"] }
 rekordbox-common = { path = "rekordbox-common" }
 rekordbox-export = { path = "rekordbox-export" }
 serde_json = "1"

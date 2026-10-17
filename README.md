@@ -39,7 +39,17 @@ The five device plugins write side by side on the same stick and share one copy 
 
 ## Build from source
 
-The native plugins form one Cargo workspace built against the SDK of the core repository, found at `../../sdk`. Check this repository out as `extension/plugin/` inside a core checkout (the core's `start.sh` does it), then:
+The native plugins form one Cargo workspace built against the plugin SDK (the core repository's `sdk/`), pinned in
+`Cargo.toml` to a tag of the core repository, so this repository alone builds. Developing against a core checkout's own
+`sdk/` (the usual place of this repository, `extension/plugin/` inside one — its `build.sh` targets that layout): add to
+`<this folder>/.cargo/config.toml` (not committed) so the pin is patched with your checkout of the SDK:
+
+```toml
+[patch.'https://github.com/OpenRsG/OpenFadeR']
+openfader-plugin = { path = "../../../sdk" }
+```
+
+Then:
 
 ```sh
 ./build.sh        # cargo build --release, then each library is copied next to its plugin.json
