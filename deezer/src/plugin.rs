@@ -209,8 +209,11 @@ impl Engine {
         arl: &str,
         settings: &Settings,
     ) -> Result<PathBuf, String> {
+        let mut clock = Clock::new();
         let session = self.session(arl)?;
+        clock.add("session");
         let page = self.track_page(id, arl, &session)?;
+        clock.add("página");
         let token = field(&page, "TRACK_TOKEN")
             .and_then(Value::as_str)
             .unwrap_or_default()
@@ -225,6 +228,7 @@ impl Engine {
             ));
         }
         let media = media::track_url(&self.http, &session.license_token, &token, &chain)?;
+        clock.add("URL");
         let key = crypto::key(id);
         let extension = media::extension(&media.format);
         let done = download::fetch(
@@ -236,6 +240,13 @@ impl Engine {
             extension,
             settings.connections,
         )?;
+        clock.add("descarga");
+        eprintln!(
+            "deezer: {id} · {} · {:.1} s · {}",
+            media.format,
+            clock.total(),
+            clock.report()
+        );
         Ok(done.file)
     }
 
@@ -288,6 +299,46 @@ impl Engine {
 /// Whether the gateway refused the token of the session (it rotates it).
 fn is_token_error(error: &str) -> bool {
     error.contains("Invalid CSRF token") || error.contains("invalid api token")
+}
+
+/// The clock of a download: what each step took (the plugin writes it to stderr, where the app shows it).
+struct Clock {
+    start: std::time::Instant,
+    steps: Vec<(&'static str, std::time::Duration)>,
+    last: std::time::Instant,
+}
+
+impl Clock {
+    /// A clock that starts now.
+    fn new() -> Self {
+        let now = std::time::Instant::now();
+        Self {
+            start: now,
+            steps: Vec::new(),
+            last: now,
+        }
+    }
+
+    /// The step that just ended.
+    fn add(&mut self, name: &'static str) {
+        let now = std::time::Instant::now();
+        self.steps.push((name, now - self.last));
+        self.last = now;
+    }
+
+    /// The seconds since the clock started.
+    fn total(&self) -> f64 {
+        self.start.elapsed().as_secs_f64()
+    }
+
+    /// The steps, one after the other (`session 90 ms · descarga 6.4 s`).
+    fn report(&self) -> String {
+        self.steps
+            .iter()
+            .map(|(name, took)| format!("{name} {:.0} ms", took.as_secs_f64() * 1000.0))
+            .collect::<Vec<_>>()
+            .join(" · ")
+    }
 }
 
 /// A field of the track: the gateway puts the track under `DATA` (the page of the track).
