@@ -27,10 +27,16 @@ impl Engine {
             Ok(request) => request,
             Err(e) => return json!({"error": format!("la petición no es JSON: {e}")}).to_string(),
         };
-        let id = request.get("id").cloned();
+        // The id that ties this reply to its request: the app sends it in `rid` (and in `id` when the request has no
+        // id of its own). A `fetch` request carries the id of the track in `id`: it must not be taken for the
+        // correlation id, or the reply would answer for another request.
+        let correlation = request
+            .get("rid")
+            .cloned()
+            .or_else(|| request.get("id").filter(|id| id.is_u64()).cloned());
         let mut reply = self.handle(&request);
-        if let (Some(id), Some(object)) = (id, reply.as_object_mut()) {
-            object.insert("id".into(), id);
+        if let (Some(id), Some(object)) = (correlation, reply.as_object_mut()) {
+            object.insert("rid".into(), id);
         }
         reply.to_string()
     }
