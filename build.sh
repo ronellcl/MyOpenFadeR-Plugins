@@ -24,6 +24,8 @@ py=$(command -v python3 || command -v python)
 for manifest in */plugin.json; do
 	dir=$(dirname "$manifest")
 	lib=$("$py" -c 'import json,sys; print(json.load(open(sys.argv[1]))["library"]["lib"][sys.argv[2]])' "$manifest" "$os" 2>/dev/null) || continue
+	# A partial build (cargo build -p <crate>) leaves the other libraries out: they are skipped, not an error.
+	[ -f "$out/$lib" ] || { echo "$dir/$lib: not built, skipped" >&2; continue; }
 	cp "$out/$lib" "$dir/$lib"
 done
 # The plugins that are a program: the binary goes to the place their manifest names (bin/<name>).
@@ -39,8 +41,10 @@ for manifest in */plugin.json; do
 	name=${program##*/}
 	mkdir -p "$dir/${program%/*}"
 	if [ "$os" = windows ]; then
-		cp "$out/$name.exe" "$dir/$program"
+		src="$out/$name.exe"
 	else
-		cp "$out/$name" "$dir/$program"
+		src="$out/$name"
 	fi
+	[ -f "$src" ] || { echo "$dir/$program: not built, skipped" >&2; continue; }
+	cp "$src" "$dir/$program"
 done
