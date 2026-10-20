@@ -32,6 +32,7 @@ In OpenFadeR open PREFERENCES > EXTENSIONS > GET PLUGINS. This repository is in 
 | `center-lock`, `gate-cue` | knob and pad modes (JSON) |
 | `now-playing`, `mix-log` | events, actions, settings (Python, Lua) |
 | `yt-dlp` | track sources: YouTube / SoundCloud search, playlists and downloads (Python, needs `yt-dlp`) |
+| `deezer` | track sources: Deezer search and downloads, with your own ARL (a native Rust engine: no Node, no deemix, no Python) |
 
 ### One stick for every player and app
 

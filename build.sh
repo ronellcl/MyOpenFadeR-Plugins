@@ -1,5 +1,6 @@
 #!/bin/sh
-# Builds the plugin workspace and copies each library next to its plugin.json. Extra arguments go to cargo (e.g. --quiet).
+# Builds the plugin workspace and copies each library next to its plugin.json, and the program of the plugins that
+# are one (a "command") into the folder their manifest names. Extra arguments go to cargo (e.g. --quiet).
 # CARGO_BUILD_TARGET=<triple> cross-compiles (the libraries are then taken from target/<triple>/release).
 set -e
 cd "$(dirname "$0")"
@@ -14,7 +15,7 @@ if [ "$os" = windows ]; then
 	# The SQLCipher plugins build OpenSSL from source: with Git Bash's own perl (too few modules) that fails, so use Strawberry Perl
 	# (on the GitHub runners) and NASM when they are there.
 	[ -x /c/Strawberry/perl/bin/perl.exe ] && export OPENSSL_SRC_PERL=C:/Strawberry/perl/bin/perl.exe
-	[ -d "/c/Program Files/NASM" ] && PATH="$PATH:/c/Program Files/NASM"
+	[ -d "/c/Program Files/NASM" ] && PATH="$PATH:$PATH"
 fi
 cargo build --release --manifest-path Cargo.toml "$@"
 out=target/release
@@ -24,4 +25,22 @@ for manifest in */plugin.json; do
 	dir=$(dirname "$manifest")
 	lib=$("$py" -c 'import json,sys; print(json.load(open(sys.argv[1]))["library"]["lib"][sys.argv[2]])' "$manifest" "$os" 2>/dev/null) || continue
 	cp "$out/$lib" "$dir/$lib"
+done
+# The plugins that are a program: the binary goes to the place their manifest names (bin/<name>).
+# The name is the one of the manifest, extension and all: the app makes the path absolute when the file is there
+# (src/plugin/mod.rs), and Windows runs a program by that path (the .exe extension is not needed).
+for manifest in */plugin.json; do
+	dir=$(dirname "$manifest")
+	program=$("$py" -c 'import json,sys; c=json.load(open(sys.argv[1])).get("command") or []; print(c[0] if c else "")' "$manifest") || continue
+	case "$program" in
+	*/*) ;; # a path inside the plugin folder
+	*) continue ;;
+	esac
+	name=${program##*/}
+	mkdir -p "$dir/${program%/*}"
+	if [ "$os" = windows ]; then
+		cp "$out/$name.exe" "$dir/$program"
+	else
+		cp "$out/$name" "$dir/$program"
+	fi
 done

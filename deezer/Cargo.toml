@@ -1,0 +1,18 @@
+[package]
+name = "deezer-engine"
+version = "2.0.0"
+edition = "2024"
+description = "The Deezer engine of OpenFadeR: a plugin program that searches the catalogue and downloads its tracks (parallel ranges, decrypted on the way to the file)."
+publish = false
+
+[[bin]]
+name = "deezer-engine"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+ureq = { version = "3", features = ["json"] }
+md-5 = "0.10"
+blowfish = "0.10"
+cipher = "0.5"
