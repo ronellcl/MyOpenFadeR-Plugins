@@ -4,3 +4,8 @@
 /*/*.dll
 /*/*.dylib
 __pycache__/
+/yt-dlp/bin/
+/yt-dlp/update.stamp
+/deezer/bin/
+/deezer/deezer-engine.exe
+/deezer/target/

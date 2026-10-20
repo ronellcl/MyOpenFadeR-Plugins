@@ -1,0 +1,70 @@
+{
+  "name": "deezer",
+  "version": "2.0.0",
+  "author": "OpenFadeR",
+  "homepage": "https://github.com/OpenRsG/OpenFadeR-Plugins",
+  "description": "Deezer: búsqueda y descargas (FLAC, o MP3 320 si Deezer no da FLAC) con tu propio ARL. Las pistas bajadas suenan desde la caché del plugin como archivos locales; nunca se descargan dos veces.",
+  "command": ["bin/deezer-engine"],
+  "persistent": true,
+  "sources": [
+    {
+      "id": "deezer",
+      "name": "Deezer",
+      "search": true
+    }
+  ],
+  "actions": [
+    {
+      "id": "arl",
+      "label": "Pegar tu ARL…",
+      "input": "Pega aquí la cookie arl de tu cuenta de Deezer (deezer.com > F12 > Application > Cookies > www.deezer.com > arl)"
+    },
+    {
+      "id": "download",
+      "label": "Descargar de una URL…",
+      "input": "Dirección de una pista, álbum o playlist de Deezer"
+    },
+    {
+      "id": "check",
+      "label": "Comprobar la sesión y el ARL"
+    }
+  ],
+  "settings": [
+    {
+      "id": "arl",
+      "label": "ARL",
+      "type": "secret",
+      "help": "La cookie arl de tu cuenta de Deezer. Sin ella la búsqueda funciona, pero las descargas no. La acción «Pegar tu ARL…» la guarda por ti."
+    },
+    {
+      "id": "quality",
+      "label": "Calidad",
+      "type": "choice",
+      "choices": [
+        "FLAC",
+        "MP3_320",
+        "MP3_128"
+      ],
+      "help": "FLAC es sin pérdida 44,1 kHz 16 bit (lo que sirve Deezer); si la cuenta no lo puede streamed, baja MP3 320. MP3 320 ocupa una fracción del tamaño con una diferencia de sonido mínima."
+    },
+    {
+      "id": "results",
+      "label": "Resultados por búsqueda",
+      "type": "number",
+      "default": 25
+    },
+    {
+      "id": "connections",
+      "label": "Conexiones por descarga",
+      "type": "number",
+      "default": 4,
+      "help": "Cuántas conexiones abren a la vez al bajar una pista (1-16). Cuantas más, más rápido llena el ancho de banda (si Deezer lo permite)."
+    },
+    {
+      "id": "folder",
+      "label": "Carpeta de descargas",
+      "type": "text",
+      "help": "Dónde deja los archivos la acción «Descargar de una URL…» (admite ~ y variables de entorno). Vacío: la carpeta downloads del plugin, en los datos de la app."
+    }
+  ]
+}
