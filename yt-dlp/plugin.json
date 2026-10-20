@@ -1,27 +1,56 @@
 {
  "name": "yt-dlp",
- "version": "1.1.0",
+ "version": "1.2.4",
  "author": "OpenFadeR",
  "homepage": "https://github.com/yt-dlp/yt-dlp",
- "description": "YouTube and SoundCloud: search, playlists and downloads through the yt-dlp program",
+ "description": "YouTube y SoundCloud: búsqueda, playlists y descargas a través del programa yt-dlp. Se auto-mantiene (comprobación diaria y autocuración si un extractor se rompe), y también baja vídeo: una pista mp4 suena en la vista VIDEO con todas las funciones de audio del deck.",
  "script": "main.py",
  "settings": [
   {
    "id": "results",
-   "label": "Results per search or playlist",
+   "label": "Resultados por búsqueda o playlist",
    "type": "number",
    "default": 25
   },
   {
    "id": "format",
-   "label": "Download format",
+   "label": "Formato de descarga",
    "type": "choice",
    "choices": [
     "m4a",
     "mp3",
+    "mp4 (video)",
     "best"
    ],
-   "help": "mp3 needs ffmpeg"
+   "help": "mp3 y mp4 necesitan ffmpeg. `mp4 (video)` baja también la imagen (extensión VIDEO): el deck suena con el audio del archivo y la vista VIDEO lo muestra. `best` conserva el mejor stream que los decks decodifican, sin convertir."
+  },
+  {
+   "id": "maxres",
+   "label": "Tope de calidad de vídeo",
+   "type": "choice",
+   "choices": [
+    "720",
+    "1080",
+    "1440",
+    "2160"
+   ],
+   "help": "Altura máxima del vídeo para `mp4 (video)`; a 1080 en un deck no se aprecia la diferencia y ocupa un tercio."
+  },
+  {
+   "id": "auto_update",
+   "label": "Auto-actualizar yt-dlp",
+   "type": "bool",
+   "default": true,
+   "help": "Comprueba a diario, y se actualiza solo cuando un extractor se rompe (reintenta una vez tras actualizar). Los binarios standalone de yt-dlp se actualizan solos; las instalaciones pip avisan en su lugar."
+  },
+  {
+   "id": "channel",
+   "label": "Canal de actualización",
+   "type": "choice",
+   "choices": [
+    "stable",
+    "nightly"
+   ]
   }
  ],
  "sources": [
@@ -39,8 +68,12 @@
  "actions": [
   {
    "id": "download",
-   "label": "Download from URL…",
-   "input": "Address of a YouTube or SoundCloud track or playlist"
+   "label": "Descargar de una URL…",
+   "input": "Dirección de una pista o playlist de YouTube o SoundCloud"
+  },
+  {
+   "id": "update",
+   "label": "Actualizar yt-dlp ahora"
   }
  ]
 }
