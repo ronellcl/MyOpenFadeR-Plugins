@@ -182,15 +182,18 @@ def convert_args(download=False):
         res = (SETTINGS.get("maxres") or "1080").strip() or "1080"
         # H.264 + AAC: the streams every player and the app's VIDEO view decode. The best VP9/Opus streams merged into
         # an .mp4 look like "audio only" (no picture) in most players, so they are the fallback, never the choice.
+        # The metadata goes into the file: the app reads the title and the artist from it (the file is named after the
+        # id, so without the tags the browser would only show the id).
         return ["-f", f"bv*[vcodec^=avc1][height<={res}]+ba[acodec^=mp4a]/b[ext=mp4]/bv*+ba/b",
                 "-S", f"res:{res},vcodec:h264,acodec:aac",
                 "--merge-output-format", "mp4",
-                *(["--embed-metadata"] if download else [])]
+                "--embed-metadata"]
     if fmt == "best" or not shutil.which("ffmpeg"):
         return ["-f", PLAYABLE]
     quality = [] if download else ["--audio-quality", "192K"]
+    # The metadata goes into the file (see above): the title and the artist are read from it.
     return ["-f", "bestaudio/best", "-x", "--audio-format", fmt, *quality,
-            *(["--embed-metadata"] if download else [])]
+            "--embed-metadata"]
 
 
 # --- self-maintenance ------------------------------------------------------
@@ -377,6 +380,27 @@ def search(source, query):
     return tracks(source, SOURCES[source]["search"].format(n=results(), q=query))
 
 
+def info(source, ids):
+    """The title and the artist of these tracks, by their id: the file of a download is named after the id, so a file
+    downloaded before the plugin wrote its tags shows the id and nothing else. yt-dlp answers without downloading."""
+    if not ids:
+        return {"tracks": []}
+    urls = [SOURCES[source]["page"].format(id=i) for i in ids]
+    done = run_raw([ytdlp(), "--no-warnings", "--skip-download", "--ignore-errors",
+                    "--print", "%(id)s\t%(title)s\t%(uploader)s", *urls], FETCH_TIMEOUT)
+    out = []
+    for line in done.stdout.splitlines():
+        parts = line.split("\t")
+        if len(parts) < 2 or not parts[1].strip():
+            continue
+        title = parts[1].strip()
+        artist = parts[2].strip() if len(parts) > 2 else ""
+        if " - " in title and not artist:  # "Artist - Title" is how music is named on YouTube
+            artist, title = title.split(" - ", 1)
+        out.append({"id": parts[0].strip(), "title": title, "artist": artist})
+    return {"tracks": out}
+
+
 def clean_parts(dest):
     """Removes the work folders of downloads that never finished (the app was killed while yt-dlp ran): they are
     hidden and hold a full video. Only an hour old or more, so a download running right now is left alone."""
@@ -478,6 +502,8 @@ def handle(req):
         return attempt(tracks, source, req["playlist"])
     if op == "search":
         return attempt(search, source, req["query"])
+    if op == "info":
+        return attempt(info, source, req.get("ids") or [])
     if op == "fetch":
         DIR = os.path.dirname(req["dir"])
         return attempt(fetch, source, req["id"], req["dir"], req["name"])
