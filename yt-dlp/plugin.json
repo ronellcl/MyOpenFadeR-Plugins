@@ -1,6 +1,6 @@
 {
  "name": "yt-dlp",
- "version": "1.2.4",
+ "version": "1.2.5",
  "author": "OpenFadeR",
  "homepage": "https://github.com/yt-dlp/yt-dlp",
  "description": "YouTube y SoundCloud: búsqueda, playlists y descargas a través del programa yt-dlp. Se auto-mantiene (comprobación diaria y autocuración si un extractor se rompe), y también baja vídeo: una pista mp4 suena en la vista VIDEO con todas las funciones de audio del deck.",
