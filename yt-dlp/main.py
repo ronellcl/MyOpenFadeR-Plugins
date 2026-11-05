@@ -5,10 +5,12 @@ One request as JSON on stdin, one reply as JSON on stdout. Needs python3; yt-dlp
 comes from the plugin's data folder, else from the `bin` folder next to this
 script (drop the official binary there: yt-dlp.exe / yt-dlp / yt-dlp_macos), else
 from PATH, else it is downloaded once into the data folder. The installer ships a
-binary next to the script and the plugin is read-only under Program Files, so the
-first use copies it into the data folder, where it can update itself. ffmpeg turns
-streams the decks cannot play (opus, webm) into AAC, merges the mp4 video
-download, and writes mp3.
+binary next to the script and the plugin is read-only under Program Files (and in
+a macOS app bundle), so the first use copies it into the data folder, where it is
+writable and can update itself; a binary without the executable bit (an archive,
+a download) is copied there and made runnable the same way. ffmpeg turns streams
+the decks cannot play (opus, webm) into AAC, merges the mp4 video download, and
+writes mp3.
 
 Track ids: the video id on YouTube, the path of the track page (`artist/track`)
 on SoundCloud. Playlists: the file playlists.json next to this script lists
@@ -89,75 +91,106 @@ def own_bin():
     return os.path.join(HERE, "bin")
 
 
+def data_dir():
+    """The plugin's folder in the app's data dir: writable, so the binary can live and update there.
+
+    A request normally says where it is (`DIR`, the host's `<data>/plugins/<name>`), but a search carries no context,
+    so the folder is rebuilt by the same convention instead of writing next to the script: under Program Files, and in
+    a macOS app bundle, that is read-only (and the bundle replaces it on every app update).
+    """
+    if DIR:
+        return DIR
+    home = os.path.expanduser("~")
+    system = platform.system()
+    if system == "Darwin":
+        base = os.path.join(home, "Library", "Application Support", "openfader")
+    elif system == "Windows":
+        base = os.path.join(os.environ.get("LOCALAPPDATA") or home, "openfader")
+    else:
+        base = os.path.join(os.environ.get("XDG_DATA_HOME") or home, ".local", "share", "openfader")
+    return os.path.join(base, "plugins", "yt-dlp")
+
+
 def data_bin():
     """The `bin` folder in the plugin's data folder (per user, writable): ours after a download."""
-    return os.path.join(DIR, "bin") if DIR else None
+    return os.path.join(data_dir(), "bin")
+
+
+def runnable(path):
+    """Sets the executable bit a download or an archive does not always carry, and says whether it can be run."""
+    try:
+        os.chmod(path, 0o755)
+    except OSError:
+        pass  # read-only (a checkout, a bundle owned by root): the caller copies it to the data folder
+    return os.access(path, os.X_OK)
+
+
+def adopt(src):
+    """Copies a binary that cannot be run where it is into the writable `bin`, runnable. The copy or None."""
+    dst = os.path.join(data_bin(), BINARY)
+    if os.path.abspath(src) == os.path.abspath(dst):
+        return None
+    try:
+        os.makedirs(data_bin(), exist_ok=True)
+        part = dst + ".part"
+        shutil.copyfile(src, part)  # copyfile drops the mode: runnable() sets it
+        os.replace(part, dst)
+    except OSError:
+        return None
+    return dst if runnable(dst) else None
 
 
 def seed_bundled():
-    """Copies the binary shipped next to the script into the data folder, once, when it cannot update itself.
+    """Copies the binary shipped next to the script into the data folder, once.
 
-    The installer puts the plugin under Program Files, where the shipped `bin\\yt-dlp.exe` is read-only: `yt-dlp -U`
-    would fail on it. The first time it is used, it is copied to `<data>/bin` (writable) and that copy is run from then
-    on, so the daily update works. Without an installer (a checkout, the data folder is the same or missing), this does
-    nothing.
+    The installer puts the plugin under Program Files, and a macOS app bundle replaces its Resources on every update:
+    the shipped `bin/` is read-only there, so `yt-dlp -U` could not replace it, and a copy inherited from an archive may
+    have no executable bit. The first use copies it to `<data>/bin` (writable, runnable) and runs that from then on.
     """
-    own, data = own_bin(), data_bin()
-    if not own or not data:
+    src = os.path.join(own_bin(), BINARY)
+    if not os.path.isfile(src):
         return
-    src = os.path.join(own, BINARY)
-    dst = os.path.join(data, BINARY)
-    if not os.path.isfile(src) or os.path.isfile(dst) or os.access(src, os.W_OK):
+    dst = os.path.join(data_bin(), BINARY)
+    if os.path.isfile(dst):
+        runnable(dst)  # a copy from an older version, or an older download, may lack the bit
         return
-    try:
-        os.makedirs(data, exist_ok=True)
-        part = dst + ".part"
-        shutil.copyfile(src, part)
-        os.replace(part, dst)
-    except OSError:
-        pass  # no writable folder either: the shipped copy still works, it just stays as it is
+    adopt(src)
 
 
 def found_binary():
     """An yt-dlp program already in place, or None: the data folder's, the plugin's, then PATH."""
     seed_bundled()
-    for d in (data_bin(), own_bin()):
-        if d:
-            p = os.path.join(d, BINARY)
-            if os.path.isfile(p):
-                return p
+    candidate = os.path.join(data_bin(), BINARY)
+    if os.path.isfile(candidate) and runnable(candidate):
+        return candidate
+    own = os.path.join(own_bin(), BINARY)
+    if os.path.isfile(own):
+        if runnable(own):
+            return own
+        if adopt(own):
+            return os.path.join(data_bin(), BINARY)
     return shutil.which("yt-dlp")
 
 
 def fetch_binary():
-    """Downloads the official build into a `bin` we can write (the data folder first, else next to the script)."""
+    """Downloads the official build into the writable `bin` of the data folder."""
     url = RELEASE.get(SETTINGS.get("channel") or "stable", RELEASE["stable"]).format(name=BINARY)
-    where = None
-    for d in (data_bin(), own_bin()):
-        if not d:
-            continue
-        try:
-            os.makedirs(d, exist_ok=True)  # a search carries no context: its `bin` may not exist yet
-            where = d
-            break
-        except OSError:
-            continue
-    if not where:
-        raise Failure(f"no hay carpeta donde guardar yt-dlp (descárgalo a mano a {own_bin()})")
-    dest = os.path.join(where, BINARY)
+    dest = os.path.join(data_bin(), BINARY)
     part = dest + ".part"
     try:
+        os.makedirs(data_bin(), exist_ok=True)
         with urlopen(url, timeout=FETCH_TIMEOUT) as src, open(part, "wb") as out:
             shutil.copyfileobj(src, out)
         os.replace(part, dest)  # it only appears under its name once it is complete
-        return dest
     except OSError as e:
         try:
             os.remove(part)
         except OSError:
             pass
-        raise Failure(f"no se pudo descargar yt-dlp de {url}: {e} "
-                      f"(descárgalo a mano a {where})")
+        raise Failure(f"no se pudo descargar yt-dlp de {url}: {e} (descárgalo a mano a {data_bin()})")
+    if not runnable(dest):
+        raise Failure(f"yt-dlp se descargó a {dest} pero no se puede ejecutar")
+    return dest
 
 
 def ytdlp():
@@ -215,11 +248,7 @@ def stamp():
 
 
 def _stamp_candidates():
-    out = []
-    if DIR:
-        out.append(os.path.dirname(DIR))  # <data>/plugins/<plugin>
-        out.append(DIR)
-    out.append(HERE)
+    out = [os.path.dirname(data_dir()), data_dir(), HERE]  # <data>/plugins/<plugin>, then the script's folder
     return out
 
 
@@ -241,7 +270,9 @@ def update_ytdlp():
     except Failure:
         return False
     text = ((done.stdout or "") + (done.stderr or "")).lower()
-    ok = done.returncode == 0 or "up to date" in text or "updated" in text
+    # The update replaces the file in place, and the new one may arrive without the executable bit: the next call would
+    # answer PermissionError instead of using it.
+    ok = (done.returncode == 0 or "up to date" in text or "updated" in text) and runnable(ytdlp())
     if ok:
         marked = stamp()
         if marked:
