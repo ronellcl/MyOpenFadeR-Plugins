@@ -86,6 +86,11 @@ class Failure(Exception):
     """Sent back as {"error": …}."""
 
 
+def cut_suffix(text, suffix):
+    """`text` without `suffix`. `str.removesuffix` is Python 3.9 and macOS 10.15 ships 3.8 (Catalina, LEGACY.md)."""
+    return text[: -len(suffix)] if suffix and text.endswith(suffix) else text
+
+
 def own_bin():
     """The plugin's `bin` folder: the official binary shipped next to the script lives here."""
     return os.path.join(HERE, "bin")
@@ -380,7 +385,7 @@ def track(source, e):
     if not ident or not e.get("title"):
         return None
     title = e["title"]
-    artist = (e.get("uploader") or e.get("channel") or "").removesuffix(" - Topic")
+    artist = cut_suffix(e.get("uploader") or e.get("channel") or "", " - Topic")
     if source == "soundcloud":
         artist = artist or ident.split("/")[0]  # flat playlist entries have no uploader: the user's name in the address
     elif " - " in title:  # "Artist - Title" is how music is named on YouTube
